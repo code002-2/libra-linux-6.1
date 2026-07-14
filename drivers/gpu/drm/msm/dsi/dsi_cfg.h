@@ -62,7 +62,7 @@ struct msm_dsi_cfg_handler {
 const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor);
 
 /* Non autodetect configs */
+extern const struct msm_dsi_cfg_handler msm8992_dsi_cfg_handler;
 extern const struct msm_dsi_cfg_handler qcm2290_dsi_cfg_handler;
 
 #endif /* __MSM_DSI_CFG_H__ */
-

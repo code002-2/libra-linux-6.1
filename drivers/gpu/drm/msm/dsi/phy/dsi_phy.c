@@ -541,6 +541,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	  .data = &dsi_phy_28nm_lp_cfgs },
 #endif
 #ifdef CONFIG_DRM_MSM_DSI_20NM_PHY
+	{ .compatible = "qcom,msm8992-dsi-phy-20nm",
+	  .data = &dsi_phy_20nm_msm8992_cfgs },
 	{ .compatible = "qcom,dsi-phy-20nm",
 	  .data = &dsi_phy_20nm_cfgs },
 #endif

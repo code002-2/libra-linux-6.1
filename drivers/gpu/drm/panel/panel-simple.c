@@ -4615,6 +4615,39 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 	.lanes = 4,
 };
 
+/* Xiaomi Libra stock 3.10 DTB: sharp_rsp61322_1080p_video. */
+static const struct drm_display_mode sharp_rsp61322_mode = {
+	.clock = (1080 + 72 + 10 + 50) * (1920 + 7 + 2 + 5) * 60 / 1000,
+	.hdisplay = 1080,
+	.hsync_start = 1080 + 72,
+	.hsync_end = 1080 + 72 + 10,
+	.htotal = 1080 + 72 + 10 + 50,
+	.vdisplay = 1920,
+	.vsync_start = 1920 + 7,
+	.vsync_end = 1920 + 7 + 2,
+	.vtotal = 1920 + 7 + 2 + 5,
+	.width_mm = 61,
+	.height_mm = 109,
+	.type = DRM_MODE_TYPE_DRIVER,
+};
+
+static const struct panel_desc_dsi sharp_rsp61322 = {
+	.desc = {
+		.modes = &sharp_rsp61322_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 61,
+			.height = 109,
+		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
 static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "auo,b080uan01",
@@ -4637,6 +4670,9 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "osddisplays,osd101t2045-53ts",
 		.data = &osd101t2045_53ts
+	}, {
+		.compatible = "sharp,rsp61322",
+		.data = &sharp_rsp61322
 	}, {
 		/* sentinel */
 	}

@@ -102,6 +102,17 @@ static const struct msm_dsi_config msm8994_dsi_cfg = {
 	.num_dsi = 2,
 };
 
+/* MSM8992 uses the same DSI 6G programming model at different MMIO bases. */
+static const struct msm_dsi_config msm8992_dsi_cfg = {
+	.io_offset = DSI_6G_REG_SHIFT,
+	.regulator_data = msm8994_dsi_regulators,
+	.num_regulators = ARRAY_SIZE(msm8994_dsi_regulators),
+	.bus_clk_names = dsi_6g_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_6g_bus_clk_names),
+	.io_start = { 0xfd994000, 0xfd996000 },
+	.num_dsi = 2,
+};
+
 static const char * const dsi_8996_bus_clk_names[] = {
 	"mdp_core", "iface", "bus", "core_mmss",
 };
@@ -319,6 +330,11 @@ const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor)
 }
 
 /*  Non autodetect configs */
+const struct msm_dsi_cfg_handler msm8992_dsi_cfg_handler = {
+	.cfg = &msm8992_dsi_cfg,
+	.ops = &msm_dsi_6g_host_ops,
+};
+
 const struct msm_dsi_cfg_handler qcm2290_dsi_cfg_handler = {
 	.cfg = &qcm2290_dsi_cfg,
 	.ops = &msm_dsi_6g_v2_host_ops,

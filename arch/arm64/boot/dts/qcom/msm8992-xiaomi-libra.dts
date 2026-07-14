@@ -454,3 +454,40 @@
 	vmmc-supply = <&pm8994_l20>;
 	vqmmc-supply = <&pm8994_s4>;
 };
+
+&mdss {
+	status = "okay";
+};
+
+&mdp {
+	status = "okay";
+};
+
+&dsi0 {
+	vdd-supply = <&pm8994_l14>;
+	vddio-supply = <&pm8994_l12>;
+	vdda-supply = <&pm8994_l2>;
+	vcca-supply = <&pm8994_l28>;
+	status = "okay";
+
+	panel@0 {
+		status = "okay";
+
+		port {
+			sharp_panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+};
+
+&dsi0_phy {
+	vddio-supply = <&pm8994_l12>;
+	vcca-supply = <&pm8994_l28>;
+	status = "okay";
+};
+
+&dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&sharp_panel_in>;
+};

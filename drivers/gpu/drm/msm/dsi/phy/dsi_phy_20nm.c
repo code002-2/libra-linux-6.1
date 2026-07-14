@@ -146,3 +146,14 @@ const struct msm_dsi_phy_cfg dsi_phy_20nm_cfgs = {
 	.num_dsi_phy = 2,
 };
 
+const struct msm_dsi_phy_cfg dsi_phy_20nm_msm8992_cfgs = {
+	.has_phy_regulator = true,
+	.regulator_data = dsi_phy_20nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_20nm_regulators),
+	.ops = {
+		.enable = dsi_20nm_phy_enable,
+		.disable = dsi_20nm_phy_disable,
+	},
+	.io_start = { 0xfd994500, 0xfd996500 },
+	.num_dsi_phy = 2,
+};
