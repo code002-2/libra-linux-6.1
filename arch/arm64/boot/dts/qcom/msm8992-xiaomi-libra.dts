@@ -201,6 +201,10 @@
 };
 
 &pm8994_spmi_regulators {
+	/* Make the SPMI LDO parent rails explicit for regulator consumers. */
+	vdd_l2_l26_l28-supply = <&pm8994_s3>;
+	vdd_l6_l12_l32-supply = <&pm8994_s5>;
+
 	VDD_APC0: s8 {
 		regulator-min-microvolt = <680000>;
 		regulator-max-microvolt = <1180000>;
