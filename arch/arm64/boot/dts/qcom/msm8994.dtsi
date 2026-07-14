@@ -1109,9 +1109,6 @@
 					 <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc MDSS_VSYNC_CLK>;
 				clock-names = "iface", "bus", "core", "vsync";
-				assigned-clocks = <&mmcc MDSS_MDP_CLK>,
-						  <&mmcc MDSS_VSYNC_CLK>;
-				assigned-clock-rates = <320000000>, <19200000>;
 				power-domains = <&mmcc MDSS_GDSC>;
 				status = "disabled";
 
