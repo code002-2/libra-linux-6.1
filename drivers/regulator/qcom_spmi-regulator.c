@@ -2385,6 +2385,8 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	int ret, lenp;
 	struct list_head *vreg_list;
 
+	dev_info(dev, "SPMI regulator probe begin\n");
+
 	vreg_list = devm_kzalloc(dev, sizeof(*vreg_list), GFP_KERNEL);
 	if (!vreg_list)
 		return -ENOMEM;
@@ -2392,12 +2394,16 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vreg_list);
 
 	regmap = dev_get_regmap(dev->parent, NULL);
-	if (!regmap)
+	if (!regmap) {
+		dev_info(dev, "SPMI regulator parent has no regmap\n");
 		return -ENODEV;
+	}
 
 	match = of_match_device(qcom_spmi_regulator_match, &pdev->dev);
-	if (!match)
+	if (!match) {
+		dev_info(dev, "SPMI regulator OF match missing\n");
 		return -ENODEV;
+	}
 
 	if (of_find_property(node, "qcom,saw-reg", &lenp)) {
 		syscon = of_parse_phandle(node, "qcom,saw-reg", 0);
@@ -2477,6 +2483,8 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&vreg->node);
 		list_add(&vreg->node, vreg_list);
 	}
+
+	dev_info(dev, "SPMI regulator probe complete\n");
 
 	return 0;
 }
