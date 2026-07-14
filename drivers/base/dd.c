@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/devinfo.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -550,6 +551,12 @@ static void device_remove(struct device *dev)
 		dev->driver->remove(dev);
 }
 
+static bool libra_dsi_probe_debug(struct device *dev)
+{
+	return !strcmp(dev_name(dev), "fd994000.dsi") ||
+		!strcmp(dev_name(dev), "fd994500.dsi-phy");
+}
+
 static int call_driver_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = 0;
@@ -598,6 +605,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	}
 
 	link_ret = device_links_check_suppliers(dev);
+	if (libra_dsi_probe_debug(dev))
+		dev_info(dev, "probe preflight: supplier_result=%d\n", link_ret);
 	if (link_ret == -EPROBE_DEFER)
 		return link_ret;
 
@@ -614,29 +623,51 @@ re_probe:
 
 	/* If using pinctrl, bind pins now before probing */
 	ret = pinctrl_bind_pins(dev);
-	if (ret)
+	if (ret) {
+		if (libra_dsi_probe_debug(dev))
+			dev_info(dev, "probe preflight: pinctrl_bind_pins=%d\n", ret);
 		goto pinctrl_bind_failed;
+	}
+	if (libra_dsi_probe_debug(dev))
+		dev_info(dev, "probe preflight: pinctrl_bind_pins=0\n");
 
 	if (dev->bus->dma_configure) {
 		ret = dev->bus->dma_configure(dev);
-		if (ret)
+		if (ret) {
+			if (libra_dsi_probe_debug(dev))
+				dev_info(dev, "probe preflight: dma_configure=%d\n", ret);
 			goto pinctrl_bind_failed;
+		}
+		if (libra_dsi_probe_debug(dev))
+			dev_info(dev, "probe preflight: dma_configure=0\n");
 	}
 
 	ret = driver_sysfs_add(dev);
 	if (ret) {
+		if (libra_dsi_probe_debug(dev))
+			dev_info(dev, "probe preflight: driver_sysfs_add=%d\n", ret);
 		pr_err("%s: driver_sysfs_add(%s) failed\n",
 		       __func__, dev_name(dev));
 		goto sysfs_failed;
 	}
+	if (libra_dsi_probe_debug(dev))
+		dev_info(dev, "probe preflight: driver_sysfs_add=0 pm_domain=%d activate=%d\n",
+			 !!dev->pm_domain, !!(dev->pm_domain && dev->pm_domain->activate));
 
 	if (dev->pm_domain && dev->pm_domain->activate) {
 		ret = dev->pm_domain->activate(dev);
-		if (ret)
+		if (ret) {
+			if (libra_dsi_probe_debug(dev))
+				dev_info(dev, "probe preflight: pm_domain_activate=%d\n", ret);
 			goto probe_failed;
+		}
 	}
 
+	if (libra_dsi_probe_debug(dev))
+		dev_info(dev, "probe preflight: entering call_driver_probe\n");
 	ret = call_driver_probe(dev, drv);
+	if (libra_dsi_probe_debug(dev))
+		dev_info(dev, "probe preflight: call_driver_probe=%d\n", ret);
 	if (ret) {
 		/*
 		 * If fw_devlink_best_effort is active (denoted by -EAGAIN), the

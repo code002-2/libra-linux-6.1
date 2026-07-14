@@ -1073,6 +1073,12 @@ static bool dev_is_best_effort(struct device *dev)
 		(dev->fwnode && fwnode_test_flag(dev->fwnode, FWNODE_FLAG_BEST_EFFORT));
 }
 
+static bool libra_dsi_link_debug(struct device *dev)
+{
+	return !strcmp(dev_name(dev), "fd994000.dsi") ||
+		!strcmp(dev_name(dev), "fd994500.dsi-phy");
+}
+
 static struct fwnode_handle *fwnode_links_check_suppliers(
 						struct fwnode_handle *fwnode)
 {
@@ -1117,6 +1123,9 @@ int device_links_check_suppliers(struct device *dev)
 	 */
 	mutex_lock(&fwnode_link_lock);
 	sup_fw = fwnode_links_check_suppliers(dev->fwnode);
+	if (libra_dsi_link_debug(dev))
+		dev_info(dev, "supplier check: fwnode=%pfwP best_effort=%d\n",
+			 sup_fw, dev_is_best_effort(dev));
 	if (sup_fw) {
 		if (!dev_is_best_effort(dev)) {
 			fwnode_ret = -EPROBE_DEFER;
@@ -1133,6 +1142,10 @@ int device_links_check_suppliers(struct device *dev)
 	device_links_write_lock();
 
 	list_for_each_entry(link, &dev->links.suppliers, c_node) {
+		if (libra_dsi_link_debug(dev))
+			dev_info(dev, "supplier link: %s status=%d flags=0x%x driver=%s\n",
+				 dev_name(link->supplier), link->status, link->flags,
+				 link->supplier->driver ? link->supplier->driver->name : "<none>");
 		if (!(link->flags & DL_FLAG_MANAGED))
 			continue;
 
