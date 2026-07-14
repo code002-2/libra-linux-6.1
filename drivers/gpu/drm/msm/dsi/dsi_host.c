@@ -404,6 +404,25 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 
 	DBG("Set clk rates: pclk=%lu, byteclk=%lu",
 	    msm_host->pixel_clk_rate, msm_host->byte_clk_rate);
+	dev_info(&msm_host->pdev->dev,
+		 "MSM8992 DRM link rates: pixel=%lu byte=%lu\n",
+		 msm_host->pixel_clk_rate, msm_host->byte_clk_rate);
+
+	/*
+	 * Libra reaches Linux with the DSI0 PLL and both MMCC roots already
+	 * programmed by LK for this one native panel mode.  The temporary 20 nm
+	 * handoff provider describes those running outputs, but it deliberately
+	 * cannot reprogram the PLL.  Avoid disturbing the matching boot clock
+	 * tree while the programmable 20 nm PLL support is being ported.
+	 */
+	if (of_device_is_compatible(msm_host->pdev->dev.of_node,
+				    "qcom,msm8992-mdss-dsi-ctrl") &&
+	    msm_host->pixel_clk_rate == 140640000 &&
+	    msm_host->byte_clk_rate == 105480000) {
+		dev_info(&msm_host->pdev->dev,
+			 "MSM8992 DRM preserving LK link clock rates\n");
+		return 0;
+	}
 
 	ret = dev_pm_opp_set_rate(&msm_host->pdev->dev,
 				  msm_host->byte_clk_rate);

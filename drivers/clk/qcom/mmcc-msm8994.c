@@ -2592,6 +2592,17 @@ static int mmcc_msm8994_probe(struct platform_device *pdev)
 		vcodec0_clk_src.freq_tbl = ftbl_vcodec0_clk_src_8992;
 		vfe0_clk_src.freq_tbl = ftbl_vfe0_1_clk_src_8992;
 		vfe1_clk_src.freq_tbl = ftbl_vfe0_1_clk_src_8992;
+
+		/*
+		 * The downstream MSM8992 clock driver treats a DSI CBCR halt
+		 * timeout as diagnostic only.  clk_branch2_ops instead returns
+		 * -EBUSY and aborts host power-on even though it has already set the
+		 * enable bit.  Match the downstream handoff semantics for DSI0 while
+		 * the boot display clock tree is being preserved.
+		 */
+		mdss_byte0_clk.halt_check = BRANCH_HALT_SKIP;
+		mdss_pclk0_clk.halt_check = BRANCH_HALT_SKIP;
+		mdss_esc0_clk.halt_check = BRANCH_HALT_SKIP;
 	}
 
 	regmap = qcom_cc_map(pdev, &mmcc_msm8994_desc);
