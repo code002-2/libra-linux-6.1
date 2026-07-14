@@ -37,11 +37,18 @@
 	compatible = "qcom,rpmcc-msm8992", "qcom,rpmcc";
 };
 
+/*
+ * MSM8992 ships with 4 Cortex-A53 (CPU0-3) + 2 Cortex-A57 (CPU4-5).
+ * The inherited MSM8994 timer PPI mask GIC_CPU_MASK_SIMPLE(4) only routes
+ * per-CPU timer interrupts to the first cluster, leaving CPU4/5 without a
+ * timer and causing RCU stalls the moment an A57 core goes online. Cover
+ * all six cores until MSM8994 mainline gains its own cluster-aware override.
+ */
 &timer {
-	interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
+		     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
+		     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
+		     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
 };
 
 &tlmm {

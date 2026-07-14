@@ -170,6 +170,18 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4)| IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	/*
+	 * MSM8992 cluster1 (CPU4/CPU5, MPIDR 0x100/0x101) is Cortex-A57 and
+	 * needs its own PMU compatible. The mask selects CPU4 and CPU5 only
+	 * (bits 4-5); MSM8994 has CPU6/CPU7 at bits 6-7 and would need
+	 * GIC_CPU_MASK_RAW(0xf0), but no MSM8994 board currently relies on
+	 * this node in production mainline.
+	 */
+	pmu_a57 {
+		compatible = "arm,cortex-a57-pmu";
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_RAW(0x30) | IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "hvc";
