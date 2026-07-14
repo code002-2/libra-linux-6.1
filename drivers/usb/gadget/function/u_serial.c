@@ -79,7 +79,8 @@
  */
 #define QUEUE_SIZE		16
 #define WRITE_BUF_SIZE		8192		/* TX only */
-#define GS_CONSOLE_BUF_SIZE	8192
+/* Libra DRM bring-up: preserve all live checkpoints before a hard lock. */
+#define GS_CONSOLE_BUF_SIZE	262144
 
 /* Prevents race conditions while accessing gser->ioport */
 static DEFINE_SPINLOCK(serial_port_lock);
@@ -1029,7 +1030,12 @@ static int gs_console_init(struct gs_port *port)
 	strcpy(cons->console.name, "ttyGS");
 	cons->console.write = gs_console_write;
 	cons->console.device = gs_console_device;
-	cons->console.flags = CON_PRINTBUFFER;
+	/*
+	 * Libra DRM bring-up diagnostic: the rescue initramfs already emits the
+	 * saved dmesg.  Replaying it here as well overruns ttyGS0 and obscures the
+	 * live checkpoint immediately preceding a blocking MDP access.
+	 */
+	cons->console.flags = 0;
 	cons->console.index = port->port_num;
 
 	INIT_WORK(&cons->work, gs_console_work);
