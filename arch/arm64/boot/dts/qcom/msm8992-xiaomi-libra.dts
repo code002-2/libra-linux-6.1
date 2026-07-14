@@ -465,7 +465,7 @@
 };
 
 &mmcc {
-	vdd-gfx-supply = <&vdd_gfx>;
+	VDD_GFX-supply = <&vdd_gfx>;
 };
 
 &framebuffer0 {
