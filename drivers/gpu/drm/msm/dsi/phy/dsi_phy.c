@@ -606,6 +606,8 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	u32 phy_type;
 	int ret;
 
+	dev_info(dev, "DSI PHY probe begin\n");
+
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
@@ -628,6 +630,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	if (phy->id < 0)
 		return dev_err_probe(dev, phy->id,
 				     "Couldn't identify PHY index\n");
+	dev_info(dev, "DSI PHY index=%d\n", phy->id);
 
 	phy->regulator_ldo_mode = of_property_read_bool(dev->of_node,
 				"qcom,dsi-phy-regulator-ldo-mode");
@@ -638,17 +641,20 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->base))
 		return dev_err_probe(dev, PTR_ERR(phy->base),
 				     "Failed to map phy base\n");
+	dev_info(dev, "DSI PHY base mapped\n");
 
 	phy->pll_base = msm_ioremap_size(pdev, "dsi_pll", &phy->pll_size);
 	if (IS_ERR(phy->pll_base))
 		return dev_err_probe(dev, PTR_ERR(phy->pll_base),
 				     "Failed to map pll base\n");
+	dev_info(dev, "DSI PHY PLL base mapped\n");
 
 	if (phy->cfg->has_phy_lane) {
 		phy->lane_base = msm_ioremap_size(pdev, "dsi_phy_lane", &phy->lane_size);
 		if (IS_ERR(phy->lane_base))
 			return dev_err_probe(dev, PTR_ERR(phy->lane_base),
 					     "Failed to map phy lane base\n");
+		dev_info(dev, "DSI PHY lane base mapped\n");
 	}
 
 	if (phy->cfg->has_phy_regulator) {
@@ -656,41 +662,56 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		if (IS_ERR(phy->reg_base))
 			return dev_err_probe(dev, PTR_ERR(phy->reg_base),
 					     "Failed to map phy regulator base\n");
+		dev_info(dev, "DSI PHY regulator base mapped\n");
 	}
 
 	if (phy->cfg->ops.parse_dt_properties) {
 		ret = phy->cfg->ops.parse_dt_properties(phy);
 		if (ret)
 			return dev_err_probe(dev, ret, "Failed to parse PHY properties\n");
+		dev_info(dev, "DSI PHY properties parsed\n");
 	}
 
 	ret = devm_regulator_bulk_get_const(dev, phy->cfg->num_regulators,
 					    phy->cfg->regulator_data,
 					    &phy->supplies);
-	if (ret)
+	if (ret) {
+		dev_info(dev, "DSI PHY regulator get returned %d\n", ret);
 		return dev_err_probe(dev, ret, "Failed to get PHY regulators\n");
+	}
+	dev_info(dev, "DSI PHY regulators acquired\n");
 
 	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk))
 		return dev_err_probe(dev, PTR_ERR(phy->ahb_clk),
 				     "Unable to get ahb clk\n");
+	dev_info(dev, "DSI PHY AHB clock acquired\n");
 
 	ret = devm_pm_runtime_enable(&pdev->dev);
-	if (ret)
+	if (ret) {
+		dev_info(dev, "DSI PHY runtime PM enable returned %d\n", ret);
 		return dev_err_probe(dev, ret, "Failed to enable runtime PM\n");
+	}
+	dev_info(dev, "DSI PHY runtime PM enabled\n");
 
 	/* PLL init will call into clk_register which requires
 	 * register access, so we need to enable power and ahb clock.
 	 */
 	ret = dsi_phy_enable_resource(phy);
-	if (ret)
+	if (ret) {
+		dev_info(dev, "DSI PHY resource enable returned %d\n", ret);
 		return dev_err_probe(dev, ret, "Failed to enable PHY resources\n");
+	}
+	dev_info(dev, "DSI PHY resources enabled\n");
 
 	if (phy->cfg->ops.pll_init) {
 		ret = phy->cfg->ops.pll_init(phy);
-		if (ret)
+		if (ret) {
+			dev_info(dev, "DSI PHY PLL init returned %d\n", ret);
 			return dev_err_probe(dev, ret,
 					     "PLL init failed; need separate clk driver\n");
+		}
+		dev_info(dev, "DSI PHY PLL initialized\n");
 	}
 
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
@@ -702,6 +723,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	dsi_phy_disable_resource(phy);
 
 	platform_set_drvdata(pdev, phy);
+	dev_info(dev, "DSI PHY probe complete\n");
 
 	return 0;
 }
@@ -716,6 +738,7 @@ static struct platform_driver dsi_phy_platform_driver = {
 
 void __init msm_dsi_phy_driver_register(void)
 {
+	pr_info("msm-drm: registering DSI PHY driver\n");
 	platform_driver_register(&dsi_phy_platform_driver);
 }
 
