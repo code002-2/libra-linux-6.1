@@ -459,6 +459,10 @@
 	status = "okay";
 };
 
+&framebuffer0 {
+	status = "disabled";
+};
+
 &mdp {
 	status = "okay";
 };
