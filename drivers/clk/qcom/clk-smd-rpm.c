@@ -153,6 +153,7 @@ struct clk_smd_rpm_req {
 struct rpm_smd_clk_desc {
 	struct clk_smd_rpm **clks;
 	size_t num_clks;
+	bool skip_scaling;
 };
 
 static DEFINE_MUTEX(rpm_smd_clk_lock);
@@ -698,6 +699,7 @@ static struct clk_smd_rpm *msm8992_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8992 = {
 	.clks = msm8992_clks,
 	.num_clks = ARRAY_SIZE(msm8992_clks),
+	.skip_scaling = true,
 };
 
 DEFINE_CLK_SMD_RPM(msm8994, ce3_clk, ce3_a_clk, QCOM_SMD_RPM_CE_CLK, 2);
@@ -1287,9 +1289,11 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	ret = clk_smd_rpm_enable_scaling(rpm);
-	if (ret)
-		goto err;
+	if (!desc->skip_scaling) {
+		ret = clk_smd_rpm_enable_scaling(rpm);
+		if (ret)
+			goto err;
+	}
 
 	for (i = 0; i < num_clks; i++) {
 		if (!rpm_smd_clks[i])
