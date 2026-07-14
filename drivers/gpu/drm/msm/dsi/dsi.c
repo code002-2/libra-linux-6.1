@@ -151,6 +151,7 @@ static int dsi_dev_probe(struct platform_device *pdev)
 	struct msm_dsi *msm_dsi;
 	int ret;
 
+	dev_info(&pdev->dev, "DSI probe begin\n");
 	DBG("");
 	msm_dsi = dsi_init(pdev);
 	if (IS_ERR(msm_dsi)) {
@@ -161,6 +162,8 @@ static int dsi_dev_probe(struct platform_device *pdev)
 		ret = PTR_ERR(msm_dsi);
 		return dev_err_probe(&pdev->dev, ret, "DSI init failed\n");
 	}
+
+	dev_info(&pdev->dev, "DSI probe complete\n");
 
 	return 0;
 }
@@ -201,6 +204,7 @@ static struct platform_driver dsi_driver = {
 
 void __init msm_dsi_register(void)
 {
+	pr_info("msm-drm: registering DSI drivers\n");
 	DBG("");
 	msm_dsi_phy_driver_register();
 	platform_driver_register(&dsi_driver);

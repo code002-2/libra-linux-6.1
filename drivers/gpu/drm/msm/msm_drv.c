@@ -1235,6 +1235,8 @@ int msm_drv_probe(struct device *master_dev,
 	struct component_match *match = NULL;
 	int ret;
 
+	dev_info(master_dev, "DRM master probe begin\n");
+
 	priv = devm_kzalloc(master_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -1262,7 +1264,10 @@ int msm_drv_probe(struct device *master_dev,
 
 	ret = component_master_add_with_match(master_dev, &msm_drm_ops, match);
 	if (ret)
-		return ret;
+		return dev_err_probe(master_dev, ret,
+				     "DRM component master registration failed\n");
+
+	dev_info(master_dev, "DRM master probe complete\n");
 
 	return 0;
 }
@@ -1312,9 +1317,12 @@ static struct platform_driver msm_platform_driver = {
 
 static int __init msm_drm_register(void)
 {
+	int ret;
+
 	if (!modeset)
 		return -EINVAL;
 
+	pr_info("msm-drm: registering display drivers\n");
 	DBG("init");
 	msm_mdp_register();
 	msm_dpu_register();
@@ -1324,7 +1332,9 @@ static int __init msm_drm_register(void)
 	adreno_register();
 	msm_mdp4_register();
 	msm_mdss_register();
-	return platform_driver_register(&msm_platform_driver);
+	ret = platform_driver_register(&msm_platform_driver);
+	pr_info("msm-drm: display driver registration result=%d\n", ret);
+	return ret;
 }
 
 static void __exit msm_drm_unregister(void)

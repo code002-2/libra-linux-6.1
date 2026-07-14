@@ -406,9 +406,11 @@ static int mdss_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
+	dev_info(dev, "MDSS probe begin\n");
+
 	mdss = msm_mdss_init(pdev, is_mdp5);
 	if (IS_ERR(mdss))
-		return PTR_ERR(mdss);
+		return dev_err_probe(dev, PTR_ERR(mdss), "MDSS init failed\n");
 
 	platform_set_drvdata(pdev, mdss);
 
@@ -422,8 +424,10 @@ static int mdss_probe(struct platform_device *pdev)
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to populate children devices\n");
 		msm_mdss_destroy(mdss);
-		return ret;
+		return dev_err_probe(dev, ret, "MDSS child population failed\n");
 	}
+
+	dev_info(dev, "MDSS probe complete\n");
 
 	return 0;
 }
@@ -465,6 +469,7 @@ static struct platform_driver mdss_platform_driver = {
 
 void __init msm_mdss_register(void)
 {
+	pr_info("msm-drm: registering MDSS driver\n");
 	platform_driver_register(&mdss_platform_driver);
 }
 
