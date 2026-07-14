@@ -275,6 +275,7 @@ static void dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
+	pr_info("MSM8992 DRM B1 DSI%d power_on enter\n", id);
 	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
@@ -283,10 +284,12 @@ static void dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 		return;
 
 	ret = dsi_mgr_phy_enable(id, phy_shared_timings);
+	pr_info("MSM8992 DRM B2 DSI%d phy_enable=%d\n", id, ret);
 	if (ret)
 		goto phy_en_fail;
 
 	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id], is_bonded_dsi, msm_dsi->phy);
+	pr_info("MSM8992 DRM B3 DSI%d host_power_on=%d\n", id, ret);
 	if (ret) {
 		pr_err("%s: power on host %d failed, %d\n", __func__, id, ret);
 		goto host_on_fail;
@@ -309,6 +312,7 @@ static void dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 	msm_dsi_host_enable_irq(host);
 	if (is_bonded_dsi && msm_dsi1)
 		msm_dsi_host_enable_irq(msm_dsi1->host);
+	pr_info("MSM8992 DRM B4 DSI%d IRQ enabled\n", id);
 
 	return;
 
@@ -330,6 +334,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
+	pr_info("MSM8992 DRM B5 DSI%d pre_enable enter\n", id);
 	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
@@ -339,8 +344,10 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 
 	if (!dsi_mgr_power_on_early(bridge))
 		dsi_mgr_bridge_power_on(bridge);
+	pr_info("MSM8992 DRM B6 DSI%d bridge power ready\n", id);
 
 	ret = msm_dsi_host_enable(host);
+	pr_info("MSM8992 DRM B7 DSI%d host_enable=%d\n", id, ret);
 	if (ret) {
 		pr_err("%s: enable host %d failed, %d\n", __func__, id, ret);
 		goto host_en_fail;
@@ -441,11 +448,15 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 	bool is_bonded_dsi = IS_BONDED_DSI();
 
 	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
+	pr_info("MSM8992 DRM B8 DSI%d mode_set %dx%d clock=%d\n",
+		id, adjusted_mode->hdisplay, adjusted_mode->vdisplay,
+		adjusted_mode->clock);
 
 	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	msm_dsi_host_set_display_mode(host, adjusted_mode);
+	pr_info("MSM8992 DRM B9 DSI%d display mode set\n", id);
 	if (is_bonded_dsi && other_dsi)
 		msm_dsi_host_set_display_mode(other_dsi->host, adjusted_mode);
 

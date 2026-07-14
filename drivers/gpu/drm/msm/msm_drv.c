@@ -536,24 +536,33 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto err_msm_uninit;
+	DRM_DEV_INFO(dev, "MSM8992 DRM D30 dev_register done\n");
 
 	if (kms) {
 		ret = msm_disp_snapshot_init(ddev);
 		if (ret)
 			DRM_DEV_ERROR(dev, "msm_disp_snapshot_init failed ret = %d\n", ret);
 	}
+	DRM_DEV_INFO(dev, "MSM8992 DRM D31 snapshot done\n");
 	drm_mode_config_reset(ddev);
+	DRM_DEV_INFO(dev, "MSM8992 DRM D32 mode reset done\n");
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (kms && fbdev)
+	if (kms && fbdev) {
+		DRM_DEV_INFO(dev, "MSM8992 DRM D33 before fbdev\n");
 		priv->fbdev = msm_fbdev_init(ddev);
+		DRM_DEV_INFO(dev, "MSM8992 DRM D34 after fbdev=%p\n",
+			     priv->fbdev);
+	}
 #endif
 
 	ret = msm_debugfs_late_init(ddev);
 	if (ret)
 		goto err_msm_uninit;
+	DRM_DEV_INFO(dev, "MSM8992 DRM D35 debugfs done\n");
 
 	drm_kms_helper_poll_init(ddev);
+	DRM_DEV_INFO(dev, "MSM8992 DRM D36 bind complete\n");
 
 	return 0;
 

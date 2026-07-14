@@ -149,8 +149,10 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	helper = &fbdev->base;
 
 	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM F1 helper prepared\n");
 
 	ret = drm_fb_helper_init(dev, helper);
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM F2 helper_init=%d\n", ret);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "could not init fbdev: ret=%d\n", ret);
 		goto fail;
@@ -158,10 +160,13 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	/* the fw fb could be anywhere in memory */
 	ret = drm_aperture_remove_framebuffers(dev->driver);
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM F3 aperture_remove=%d\n", ret);
 	if (ret)
 		goto fini;
 
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM F4 before initial_config\n");
 	ret = drm_fb_helper_initial_config(helper, 32);
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM F5 initial_config=%d\n", ret);
 	if (ret)
 		goto fini;
 

@@ -365,7 +365,9 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->prepared)
 		return 0;
 
+	dev_info(panel->dev, "MSM8992 DRM P1 panel prepare enter\n");
 	ret = pm_runtime_get_sync(panel->dev);
+	dev_info(panel->dev, "MSM8992 DRM P2 panel runtime_get=%d\n", ret);
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(panel->dev);
 		return ret;
@@ -383,10 +385,12 @@ static int panel_simple_enable(struct drm_panel *panel)
 	if (p->enabled)
 		return 0;
 
+	dev_info(panel->dev, "MSM8992 DRM P3 panel enable enter\n");
 	if (p->desc->delay.enable)
 		msleep(p->desc->delay.enable);
 
 	p->enabled = true;
+	dev_info(panel->dev, "MSM8992 DRM P4 panel enabled\n");
 
 	return 0;
 }
