@@ -1042,7 +1042,7 @@
 		};
 
 		mmcc: clock-controller@fd8c0000 {
-			compatible = "qcom,mmcc-msm8994";
+			compatible = "qcom,mmcc-msm8992";
 			reg = <0xfd8c0000 0x5200>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -1111,7 +1111,7 @@
 				clock-names = "iface", "bus", "core", "vsync";
 				assigned-clocks = <&mmcc MDSS_MDP_CLK>,
 						  <&mmcc MDSS_VSYNC_CLK>;
-				assigned-clock-rates = <300000000>, <19200000>;
+				assigned-clock-rates = <320000000>, <19200000>;
 				power-domains = <&mmcc MDSS_GDSC>;
 				status = "disabled";
 
