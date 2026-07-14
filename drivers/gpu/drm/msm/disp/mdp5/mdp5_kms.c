@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/interconnect.h>
 #include <linux/of_irq.h>
+#include <linux/qcom_scm.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
@@ -303,18 +304,73 @@ static int mdp5_disable(struct mdp5_kms *mdp5_kms)
 
 static int mdp5_enable(struct mdp5_kms *mdp5_kms)
 {
+	struct device *dev = &mdp5_kms->pdev->dev;
+	int ret;
+
 	DBG("");
+
+	ret = clk_prepare_enable(mdp5_kms->ahb_clk);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to enable AHB clock\n");
+
+	ret = clk_prepare_enable(mdp5_kms->axi_clk);
+	if (ret)
+		goto err_disable_ahb;
+
+	ret = clk_prepare_enable(mdp5_kms->core_clk);
+	if (ret)
+		goto err_disable_axi;
+
+	ret = clk_prepare_enable(mdp5_kms->lut_clk);
+	if (ret)
+		goto err_disable_core;
+
+	ret = clk_prepare_enable(mdp5_kms->tbu_clk);
+	if (ret)
+		goto err_disable_lut;
+
+	ret = clk_prepare_enable(mdp5_kms->tbu_rt_clk);
+	if (ret)
+		goto err_disable_tbu;
+
+	/*
+	 * The MSM8992 downstream MDSS driver restores device ID 1 whenever
+	 * MDSS_GDSC is powered on.  Without that secure-world handoff, the first
+	 * MDP register access raises an external abort even with GDSC and clocks
+	 * enabled.
+	 */
+	if (of_machine_is_compatible("qcom,msm8992")) {
+		if (!qcom_scm_restore_sec_cfg_available()) {
+			ret = -EOPNOTSUPP;
+			dev_err(dev, "MDSS secure configuration restore unavailable\n");
+			goto err_disable_tbu_rt;
+		}
+
+		ret = qcom_scm_restore_sec_cfg(1, 0);
+		dev_info(dev, "MDSS secure configuration restore returned %d\n",
+			 ret);
+		if (ret)
+			goto err_disable_tbu_rt;
+	}
 
 	mdp5_kms->enable_count++;
 
-	clk_prepare_enable(mdp5_kms->ahb_clk);
-	clk_prepare_enable(mdp5_kms->axi_clk);
-	clk_prepare_enable(mdp5_kms->core_clk);
-	clk_prepare_enable(mdp5_kms->lut_clk);
-	clk_prepare_enable(mdp5_kms->tbu_clk);
-	clk_prepare_enable(mdp5_kms->tbu_rt_clk);
-
 	return 0;
+
+err_disable_tbu_rt:
+	clk_disable_unprepare(mdp5_kms->tbu_rt_clk);
+err_disable_tbu:
+	clk_disable_unprepare(mdp5_kms->tbu_clk);
+err_disable_lut:
+	clk_disable_unprepare(mdp5_kms->lut_clk);
+err_disable_core:
+	clk_disable_unprepare(mdp5_kms->core_clk);
+err_disable_axi:
+	clk_disable_unprepare(mdp5_kms->axi_clk);
+err_disable_ahb:
+	clk_disable_unprepare(mdp5_kms->ahb_clk);
+
+	return dev_err_probe(dev, ret, "failed to enable MDP5 resources\n");
 }
 
 static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
@@ -361,6 +417,9 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms,
 	struct drm_encoder *encoder;
 	int ret = 0;
 
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM M1 intf type=%u num=%u\n",
+		     intf->type, intf->num);
+
 	switch (intf->type) {
 	case INTF_eDP:
 		DRM_DEV_INFO(dev->dev, "Skipping eDP interface %d\n", intf->num);
@@ -389,6 +448,9 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms,
 					mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 		int dsi_id = get_dsi_id_from_intf(hw_cfg, intf->num);
 
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M2 DSI intf=%u id=%d\n",
+			     intf->num, dsi_id);
+
 		if ((dsi_id >= ARRAY_SIZE(priv->dsi)) || (dsi_id < 0)) {
 			DRM_DEV_ERROR(dev->dev, "failed to find dsi from intf %d\n",
 				intf->num);
@@ -400,18 +462,23 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms,
 			break;
 
 		ctl = mdp5_ctlm_request(ctlm, intf->num);
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M3 DSI ctl=%p\n", ctl);
 		if (!ctl) {
 			ret = -EINVAL;
 			break;
 		}
 
 		encoder = construct_encoder(mdp5_kms, intf, ctl);
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M4 DSI encoder=%p\n",
+			     encoder);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
 		}
 
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M5 before DSI modeset\n");
 		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M6 DSI modeset=%d\n", ret);
 		if (!ret)
 			mdp5_encoder_set_intf_mode(encoder, msm_dsi_is_cmd_mode(priv->dsi[dsi_id]));
 
@@ -437,12 +504,17 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	struct drm_encoder *encoder;
 	unsigned int num_encoders;
 
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM M0 modeset intfs=%u pipes=%u mixers=%u\n",
+		     mdp5_kms->num_intfs, mdp5_kms->num_hwpipes,
+		     mdp5_kms->num_hwmixers);
+
 	/*
 	 * Construct encoders and modeset initialize connector devices
 	 * for each external display interface.
 	 */
 	for (i = 0; i < mdp5_kms->num_intfs; i++) {
 		ret = modeset_init_intf(mdp5_kms, mdp5_kms->intfs[i]);
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M7 intf[%d]=%d\n", i, ret);
 		if (ret)
 			goto fail;
 	}
@@ -457,6 +529,8 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	 * but let's be safe here anyway
 	 */
 	num_crtcs = min(num_encoders, mdp5_kms->num_hwmixers);
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM M8 encoders=%u crtcs=%u\n",
+		     num_encoders, num_crtcs);
 
 	/*
 	 * Construct planes equaling the number of hw pipes, and CRTCs for the
@@ -475,6 +549,8 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		else
 			type = DRM_PLANE_TYPE_OVERLAY;
 
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M9 plane[%d] type=%u\n",
+			     i, type);
 		plane = mdp5_plane_init(dev, type);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
@@ -491,6 +567,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < num_crtcs; i++) {
 		struct drm_crtc *crtc;
 
+		DRM_DEV_INFO(dev->dev, "MSM8992 DRM M10 crtc[%d]\n", i);
 		crtc  = mdp5_crtc_init(dev, primary[i], cursor[i], i);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
@@ -513,13 +590,20 @@ fail:
 	return ret;
 }
 
-static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
-				 u32 *major, u32 *minor)
+static int read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
+				u32 *major, u32 *minor)
 {
 	struct device *dev = &mdp5_kms->pdev->dev;
+	int ret;
 	u32 version;
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	DRM_DEV_INFO(dev, "MDP5 initial runtime resume returned %d\n", ret);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
+
 	version = mdp5_read(mdp5_kms, REG_MDP5_HW_VERSION);
 	pm_runtime_put_sync(dev);
 
@@ -527,6 +611,8 @@ static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
 	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
 
 	DRM_DEV_INFO(dev, "MDP5 version v%d.%d", *major, *minor);
+
+	return 0;
 }
 
 static int get_clk(struct platform_device *pdev, struct clk **clkp,
@@ -559,6 +645,7 @@ static int mdp5_kms_init(struct drm_device *dev)
 	int irq, i, ret;
 
 	ret = mdp5_init(to_platform_device(dev->dev), dev);
+	DRM_DEV_INFO(dev->dev, "MSM8992 DRM C10 mdp5_init=%d\n", ret);
 	if (ret)
 		return ret;
 
@@ -571,6 +658,7 @@ static int mdp5_kms_init(struct drm_device *dev)
 	pdev = mdp5_kms->pdev;
 
 	ret = mdp_kms_init(&mdp5_kms->base, &kms_funcs);
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C11 mdp_kms_init=%d\n", ret);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to init kms\n");
 		goto fail;
@@ -586,23 +674,49 @@ static int mdp5_kms_init(struct drm_device *dev)
 	kms->irq = irq;
 
 	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C12 before runtime_get\n");
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
 	 */
-	pm_runtime_get_sync(&pdev->dev);
-	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
-		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
-		    !config->hw->intf.base[i])
-			continue;
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+	ret = pm_runtime_get_sync(&pdev->dev);
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C13 runtime_get=%d\n", ret);
+	if (of_machine_is_compatible("qcom,msm8992")) {
+		/*
+		 * The downstream MSM8992 driver never disables every interface at
+		 * probe.  It stops only an acquired video context, waits one VSYNC,
+		 * then masks underrun and powers the block down.  Libra has no IOMMU
+		 * here, so the generic pre-attach splash shutdown is unnecessary and
+		 * can trigger an underrun while no MDP IRQ handler is installed.
+		 */
+		DRM_DEV_INFO(&pdev->dev,
+			     "MSM8992 DRM C22 preserve boot interface\n");
+	} else {
+		for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
+			if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
+			    !config->hw->intf.base[i])
+				continue;
+			DRM_DEV_INFO(&pdev->dev,
+				     "MSM8992 DRM C%d before INTF%d base=%#x\n",
+				     14 + i * 2, i, config->hw->intf.base[i]);
+			mdp5_write(mdp5_kms,
+				   REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
 
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
+			mdp5_write(mdp5_kms,
+				   REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
+			DRM_DEV_INFO(&pdev->dev,
+				     "MSM8992 DRM C%d after INTF%d\n",
+				     15 + i * 2, i);
+		}
+		mdelay(16);
 	}
-	mdelay(16);
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C24 interface handoff ready\n");
 
 	aspace = msm_kms_init_aspace(mdp5_kms->dev);
+	DRM_DEV_INFO(&pdev->dev,
+		     "MSM8992 DRM C25 aspace=%ld\n",
+		     IS_ERR(aspace) ? PTR_ERR(aspace) : 0L);
 	if (IS_ERR(aspace)) {
 		ret = PTR_ERR(aspace);
 		goto fail;
@@ -613,6 +727,7 @@ static int mdp5_kms_init(struct drm_device *dev)
 	pm_runtime_put_sync(&pdev->dev);
 
 	ret = modeset_init(mdp5_kms);
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C26 modeset=%d\n", ret);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "modeset_init failed: %d\n", ret);
 		goto fail;
@@ -841,10 +956,19 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	/* set uninit-ed kms */
 	priv->kms = &mdp5_kms->base.base;
 
+	/*
+	 * The device has not been powered or clocked by this driver yet.  Start
+	 * runtime PM in the suspended state so that the first get runs both the
+	 * genpd power-on path and mdp5_runtime_resume() before touching MDP MMIO.
+	 * This matches the downstream MSM8992 MDSS driver's probe sequence.
+	 */
+	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	mdp5_kms->rpm_enabled = true;
 
-	read_mdp_hw_revision(mdp5_kms, &major, &minor);
+	ret = read_mdp_hw_revision(mdp5_kms, &major, &minor);
+	if (ret)
+		goto fail;
 
 	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, minor);
 	if (IS_ERR(mdp5_kms->cfg)) {
@@ -854,6 +978,9 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	}
 
 	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+	DRM_DEV_INFO(&pdev->dev,
+		     "MSM8992 DRM C1 config=%s\n",
+		     config->hw->name);
 	mdp5_kms->caps = config->hw->mdp.caps;
 
 	/* TODO: compute core clock rate at runtime */
@@ -872,6 +999,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 			goto fail;
 		}
 	}
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C2 SMP\n");
 
 	mdp5_kms->ctlm = mdp5_ctlm_init(dev, mdp5_kms->mmio, mdp5_kms->cfg);
 	if (IS_ERR(mdp5_kms->ctlm)) {
@@ -879,18 +1007,22 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 		mdp5_kms->ctlm = NULL;
 		goto fail;
 	}
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C3 CTL\n");
 
 	ret = hwpipe_init(mdp5_kms);
 	if (ret)
 		goto fail;
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C4 pipes\n");
 
 	ret = hwmixer_init(mdp5_kms);
 	if (ret)
 		goto fail;
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C5 mixers\n");
 
 	ret = interface_init(mdp5_kms);
 	if (ret)
 		goto fail;
+	DRM_DEV_INFO(&pdev->dev, "MSM8992 DRM C6 intf structs\n");
 
 	return 0;
 fail:

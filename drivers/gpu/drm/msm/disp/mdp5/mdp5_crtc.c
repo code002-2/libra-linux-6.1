@@ -1238,6 +1238,8 @@ static void mdp5_crtc_wait_for_flush_done(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
+	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct mdp5_interface *intf = mdp5_cstate->pipeline.intf;
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	int ret;
 
@@ -1253,8 +1255,23 @@ static void mdp5_crtc_wait_for_flush_done(struct drm_crtc *crtc)
 		((mdp5_ctl_get_commit_status(ctl) &
 		mdp5_crtc->flushed_mask) == 0),
 		msecs_to_jiffies(50));
-	if (ret <= 0)
+	if (ret <= 0) {
 		dev_warn(dev->dev, "vblank time out, crtc=%d\n", mdp5_crtc->id);
+		if (intf)
+			dev_warn(dev->dev,
+				 "MSM8992 DRM timeout: ctl=%08x flushed=%08x intf=%u en=%08x frame=%08x line=%08x intr_en=%08x intr_status=%08x vblank_mask=%08x\n",
+				 mdp5_ctl_get_commit_status(ctl),
+				 mdp5_crtc->flushed_mask, intf->num,
+				 mdp5_read(mdp5_kms,
+					   REG_MDP5_INTF_TIMING_ENGINE_EN(intf->num)),
+				 mdp5_read(mdp5_kms,
+					   REG_MDP5_INTF_FRAME_COUNT(intf->num)),
+				 mdp5_read(mdp5_kms,
+					   REG_MDP5_INTF_LINE_COUNT(intf->num)),
+				 mdp5_read(mdp5_kms, REG_MDP5_INTR_EN),
+				 mdp5_read(mdp5_kms, REG_MDP5_INTR_STATUS),
+				 mdp5_crtc->vblank.irqmask);
+	}
 
 	mdp5_crtc->flushed_mask = 0;
 
