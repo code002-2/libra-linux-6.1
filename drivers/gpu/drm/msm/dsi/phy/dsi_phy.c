@@ -661,14 +661,14 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	if (phy->cfg->ops.parse_dt_properties) {
 		ret = phy->cfg->ops.parse_dt_properties(phy);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret, "Failed to parse PHY properties\n");
 	}
 
 	ret = devm_regulator_bulk_get_const(dev, phy->cfg->num_regulators,
 					    phy->cfg->regulator_data,
 					    &phy->supplies);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to get PHY regulators\n");
 
 	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk))
@@ -677,14 +677,14 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to enable runtime PM\n");
 
 	/* PLL init will call into clk_register which requires
 	 * register access, so we need to enable power and ahb clock.
 	 */
 	ret = dsi_phy_enable_resource(phy);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to enable PHY resources\n");
 
 	if (phy->cfg->ops.pll_init) {
 		ret = phy->cfg->ops.pll_init(phy);

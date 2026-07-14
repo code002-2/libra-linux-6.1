@@ -149,6 +149,7 @@ void dsi_dev_detach(struct platform_device *pdev)
 static int dsi_dev_probe(struct platform_device *pdev)
 {
 	struct msm_dsi *msm_dsi;
+	int ret;
 
 	DBG("");
 	msm_dsi = dsi_init(pdev);
@@ -156,8 +157,9 @@ static int dsi_dev_probe(struct platform_device *pdev)
 		/* Don't fail the bind if the dsi port is not connected */
 		if (PTR_ERR(msm_dsi) == -ENODEV)
 			return 0;
-		else
-			return PTR_ERR(msm_dsi);
+
+		ret = PTR_ERR(msm_dsi);
+		return dev_err_probe(&pdev->dev, ret, "DSI init failed\n");
 	}
 
 	return 0;

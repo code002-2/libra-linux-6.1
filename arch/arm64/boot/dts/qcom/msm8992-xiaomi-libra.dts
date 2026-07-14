@@ -432,18 +432,13 @@
 		compatible = "qcom,rpm-pmi8994-regulators";
 		vdd_s1-supply = <&vph_pwr>;
 		vdd_bst_byp-supply = <&vph_pwr>;
-		vdd_s2-supply = <&vph_pwr>;
 
 		pmi8994_s1: s1 {
 			regulator-min-microvolt = <1025000>;
 			regulator-max-microvolt = <1025000>;
 		};
 
-		vdd_gfx: s2 {
-			regulator-name = "VDD_GFX";
-			regulator-min-microvolt = <980000>;
-			regulator-max-microvolt = <980000>;
-		};
+		/* S2 & S3 - VDD_GFX */
 
 		pmi8994_bby: boost-bypass {
 			regulator-min-microvolt = <3150000>;
@@ -462,10 +457,6 @@
 
 &mdss {
 	status = "okay";
-};
-
-&mmcc {
-	VDD_GFX-supply = <&vdd_gfx>;
 };
 
 &framebuffer0 {
