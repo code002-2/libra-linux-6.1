@@ -17,6 +17,10 @@ on:
       - 'scripts/build-debian13-rootfs.sh'
       - '.github/workflows/debian-rootfs.yml'
 
+concurrency:
+  group: debian-rootfs-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
