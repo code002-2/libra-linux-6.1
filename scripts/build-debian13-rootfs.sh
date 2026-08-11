@@ -69,6 +69,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# pass variables through into the chroot so inner heredocs expand them
+export ROOT_PASS HOSTNAME TZ ROOT_DEV
+
 chroot "${ROOTFS_DIR}" /bin/bash <<'EOF'
 set -e
 export DEBIAN_FRONTEND=noninteractive
@@ -99,7 +102,7 @@ ln -sf /lib/systemd/system/serial-getty@.service \
     "${ROOTFS_DIR}/etc/systemd/system/getty.target.wants/serial-getty@ttyGS0.service" 2>/dev/null || true
 
 # --- one-shot resize of the root filesystem to fill the partition on first boot ---
-cat > "${ROOTFS_DIR}/etc/systemd/system/resize-root.service" <<'EOF'
+cat > "${ROOTFS_DIR}/etc/systemd/system/resize-root.service" <<EOF
 [Unit]
 Description=Resize root filesystem to fill partition
 DefaultDependencies=no
@@ -109,7 +112,7 @@ ConditionPathIsReadWrite=/
 
 [Service]
 Type=oneshot
-ExecStart=/sbin/resize2fs "${ROOT_DEV}"
+ExecStart=/sbin/resize2fs ${ROOT_DEV}
 ExecStart=/bin/true
 
 [Install]
