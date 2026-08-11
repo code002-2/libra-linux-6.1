@@ -28,7 +28,7 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
             binutils-aarch64-linux-gnu \
-            android-tools-mkbootimg \
+            mkbootimg \
             cpio curl xz-utils
 
       - name: Build kernel + initramfs + boot.img
