@@ -42,7 +42,8 @@ echo "==> [1/4] Configure kernel (olddefconfig on committed .config)"
 make olddefconfig
 
 echo "==> [2/4] Build kernel Image.gz + libra DTB"
-make -j"$JOBS" Image.gz "$DTC_DTB"
+make -j"$JOBS" Image.gz
+make -j"$JOBS" dtbs
 
 echo "==> [3/4] Build initramfs (Alpine minirootfs + initramfs/init)"
 ALPINE_INDEX_URL="https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/aarch64/"
