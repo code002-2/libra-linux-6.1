@@ -1,0 +1,46 @@
+name: debian-rootfs
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_size:
+        description: "ext4 image size (e.g. 1G, 2G)"
+        required: false
+        default: "2G"
+      root_pass:
+        description: "root password"
+        required: false
+        default: "libra"
+  push:
+    branches: [master, main]
+    paths:
+      - 'scripts/build-debian13-rootfs.sh'
+      - '.github/workflows/debian-rootfs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Debian 13 (trixie) arm64 rootfs
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build rootfs image
+        run: |
+          sudo bash scripts/build-debian13-rootfs.sh \
+            ${IMAGE_SIZE:+IMAGE_SIZE=$IMAGE_SIZE} \
+            ${ROOT_PASS:+ROOT_PASS=$ROOT_PASS}
+        env:
+          IMAGE_SIZE: ${{ inputs.image_size || '2G' }}
+          ROOT_PASS: ${{ inputs.root_pass || 'libra' }}
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-trixie-arm64
+          path: debian-trixie-arm64.img
+          retention-days: 7
+          if-no-files-found: error
