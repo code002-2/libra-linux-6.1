@@ -1,0 +1,79 @@
+#!/bin/sh
+# =============================================================================
+# init — minimal bring-up initramfs for Xiaomi Mi 4c (libra) mainline Linux 6.1
+# -----------------------------------------------------------------------------
+# Mounts pseudo-filesystems, prints everything needed to verify a boot
+# (kernel version, cmdline, partition table, eMMC PARTNAME mapping, console
+#  devices), then either switch_root's into a rootfs found on a known
+#  partition (PARTLABEL=linux|libra|system) or drops to an interactive shell.
+#
+# The interactive shell attaches to the first available console:
+#   /dev/ttyGS0  USB gadget serial (primary debug console; PC sees a COM port)
+#   /dev/tty0    framebuffer console (if the DRM display is up)
+#   /dev/ttyMSM* UART
+# =============================================================================
+
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+# --- pseudo filesystems ---
+mount -t proc proc /proc 2>/dev/null
+mount -t sysfs sysfs /sys 2>/dev/null
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm /run /tmp /mnt
+mount -t devpts devpts /dev/pts 2>/dev/null
+
+log() { echo "[libra-init] $*"; }
+
+KVER="$(uname -r 2>/dev/null || echo unknown)"
+log "=== LIBRA MAINLINE BOOT OK ($KVER) ==="
+
+log "--- /proc/cmdline ---"
+cat /proc/cmdline 2>/dev/null; echo
+
+log "--- /proc/partitions ---"
+cat /proc/partitions 2>/dev/null
+
+log "--- eMMC partition names (PARTNAME/PARTLABEL) ---"
+for d in /sys/block/mmcblk0/mmcblk0p*; do
+    [ -d "$d" ] || continue
+    name="$(sed -n 's/^PARTNAME=//p' "$d/uevent" 2>/dev/null)"
+    label="$(sed -n 's/^PARTLABEL=//p' "$d/uevent" 2>/dev/null)"
+    echo "/dev/$(basename "$d")  name=${name:-?}  label=${label:-?}"
+done
+
+log "--- console devices present ---"
+ls -1 /dev/ttyGS* /dev/ttyMSM* /dev/tty0 2>/dev/null || true
+
+# --- optional: boot a rootfs found on a known partition ---
+for d in /sys/block/mmcblk0/mmcblk0p*; do
+    [ -d "$d" ] || continue
+    label="$(sed -n 's/^PARTLABEL=//p' "$d/uevent" 2>/dev/null)"
+    case "$label" in
+        linux|libra|system)
+            dev="/dev/$(basename "$d")"
+            log "PARTLABEL=$label on $dev - trying to boot it"
+            mkdir -p /mnt/root
+            if mount -t ext4 "$dev" /mnt/root 2>/dev/null || mount -t f2fs "$dev" /mnt/root 2>/dev/null; then
+                if [ -x /mnt/root/sbin/init ]; then
+                    log "booting rootfs at $dev"
+                    exec switch_root /mnt/root /sbin/init
+                fi
+                umount /mnt/root 2>/dev/null
+            fi
+            ;;
+    esac
+done
+
+log "=== No rootfs found. Dropping to interactive shell. ==="
+
+CONSOLE=""
+for t in ttyGS0 tty0 ttyMSM0 console; do
+    if [ -e "/dev/$t" ]; then
+        CONSOLE="/dev/$t"
+        break
+    fi
+done
+CONSOLE="${CONSOLE:-/dev/console}"
+
+log "spawning shell on $CONSOLE"
+exec setsid sh -c "exec sh <$CONSOLE >$CONSOLE 2>&1"
