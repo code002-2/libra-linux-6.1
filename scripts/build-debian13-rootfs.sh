@@ -87,8 +87,10 @@ ${ROOT_DEV}  /  ext4  errors=remount-ro  0 1
 FSTAB
 
 # --- extra packages (command-line focus) ---
+# NOTE: minbase ships NO init system; systemd-sysvinit provides /sbin/init
 apt-get update
 apt-get install -y --no-install-recommends \
+    systemd systemd-sysvinit dbus \
     openssh-server openssh-client \
     iproute2 procps psmisc bash-completion \
     less nano htop curl wget ca-certificates \
