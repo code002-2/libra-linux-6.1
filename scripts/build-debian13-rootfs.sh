@@ -94,7 +94,7 @@ apt-get install -y --no-install-recommends \
     openssh-server openssh-client \
     iproute2 procps psmisc bash-completion \
     less nano htop curl wget ca-certificates \
-    e2fsprogs file
+    e2fsprogs file fastfetch
 EOF
 
 # --- root password (chpasswd --root avoids PAM in the chroot) ---
