@@ -31,7 +31,8 @@ export DEBIAN_FRONTEND
 
 echo "==> [1/4] Install bootstrap tooling"
 apt-get update
-apt-get install -y --no-install-recommends mmdebstrap debootstrap e2fsprogs
+apt-get install -y --no-install-recommends mmdebstrap debootstrap e2fsprogs \
+    debian-archive-keyring
 
 echo "==> [2/4] Bootstrap Debian ${SUITE} (${ARCH})"
 rm -rf "${ROOTFS_DIR}"
@@ -40,21 +41,32 @@ mkdir -p "${ROOTFS_DIR}"
 if command -v mmdebstrap >/dev/null; then
     echo "    using mmdebstrap"
     mmdebstrap --variant=minbase --arch="${ARCH}" \
+        --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
         "${SUITE}" "${ROOTFS_DIR}" "${MIRROR}"
 else
     echo "    using debootstrap"
     debootstrap --arch="${ARCH}" --variant=minbase \
+        --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
         "${SUITE}" "${ROOTFS_DIR}" "${MIRROR}"
 fi
 
 echo "==> [3/4] Configure rootfs"
+# bind-mount pseudo filesystems so package postinst scripts work inside chroot
+for m in /proc /sys /dev; do
+    mount --bind "$m" "${ROOTFS_DIR}${m}" 2>/dev/null || true
+done
 # network resolution for apt inside the chroot
 if mountpoint -q "${ROOTFS_DIR}/etc/resolv.conf" 2>/dev/null; then
     umount "${ROOTFS_DIR}/etc/resolv.conf" 2>/dev/null || true
 fi
 mount --bind /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf" 2>/dev/null || \
     cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
-cleanup() { umount "${ROOTFS_DIR}/etc/resolv.conf" 2>/dev/null || true; }
+cleanup() {
+    umount "${ROOTFS_DIR}/etc/resolv.conf" 2>/dev/null || true
+    umount "${ROOTFS_DIR}/dev" 2>/dev/null || true
+    umount "${ROOTFS_DIR}/sys" 2>/dev/null || true
+    umount "${ROOTFS_DIR}/proc" 2>/dev/null || true
+}
 trap cleanup EXIT
 
 chroot "${ROOTFS_DIR}" /bin/bash <<'EOF'
