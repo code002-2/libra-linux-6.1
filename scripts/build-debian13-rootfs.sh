@@ -37,6 +37,7 @@ apt-get install -y --no-install-recommends mmdebstrap debootstrap e2fsprogs \
 echo "==> [2/4] Bootstrap Debian ${SUITE} (${ARCH})"
 rm -rf "${ROOTFS_DIR}"
 mkdir -p "${ROOTFS_DIR}"
+ROOTFS_DIR="$(cd "${ROOTFS_DIR}" && pwd)"   # absolute path (chpasswd --root needs it)
 
 if command -v mmdebstrap >/dev/null; then
     echo "    using mmdebstrap"
