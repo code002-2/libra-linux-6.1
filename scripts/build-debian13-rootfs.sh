@@ -79,7 +79,6 @@ export DEBIAN_FRONTEND=noninteractive
 echo "${HOSTNAME}" > /etc/hostname
 echo "127.0.1.1 ${HOSTNAME}" >> /etc/hosts
 ln -sf /usr/share/zoneinfo/"${TZ}" /etc/localtime
-echo "root:${ROOT_PASS}" | chpasswd
 
 # --- fstab ---
 cat > /etc/fstab <<FSTAB
@@ -94,6 +93,9 @@ apt-get install -y --no-install-recommends \
     less nano htop curl wget ca-certificates \
     e2fsprogs file
 EOF
+
+# --- root password (chpasswd --root avoids PAM in the chroot) ---
+echo "root:${ROOT_PASS}" | chpasswd --root "${ROOTFS_DIR}"
 
 # --- enable services without a running systemd ---
 systemctl --root="${ROOTFS_DIR}" enable ssh 2>/dev/null || true
