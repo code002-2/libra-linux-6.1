@@ -5,6 +5,10 @@ on:
   push:
     branches: [master, main]
 
+concurrency:
+  group: libra-boot-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
