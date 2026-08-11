@@ -87,15 +87,21 @@ ${ROOT_DEV}  /  ext4  errors=remount-ro  0 1
 FSTAB
 
 # --- extra packages (command-line focus) ---
-# NOTE: minbase ships NO init system; systemd-sysvinit provides /sbin/init
+# NOTE: minbase ships NO init system. trixie no longer ships systemd-sysvinit,
+# so /sbin/init is created manually below (symlink to systemd).
 apt-get update
 apt-get install -y --no-install-recommends \
-    systemd systemd-sysvinit dbus \
+    systemd dbus \
     openssh-server openssh-client \
     iproute2 procps psmisc bash-completion \
     less nano htop curl wget ca-certificates \
-    e2fsprogs file fastfetch
+    e2fsprogs file
+# optional/cosmetic; tolerate absence
+apt-get install -y --no-install-recommends fastfetch || true
 EOF
+
+# --- /sbin/init -> systemd (PID 1) ---
+ln -sf /lib/systemd/systemd "${ROOTFS_DIR}/sbin/init"
 
 # --- root password (chpasswd --root avoids PAM in the chroot) ---
 echo "root:${ROOT_PASS}" | chpasswd --root "${ROOTFS_DIR}"
