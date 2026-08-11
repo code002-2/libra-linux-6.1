@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches: [master, main]
+    paths:
+      - 'scripts/build-libra.sh'
+      - 'scripts/mkbootimg.py'
+      - 'initramfs/**'
+      - '.github/workflows/libra-boot.yml'
 
 concurrency:
   group: libra-boot-${{ github.ref }}
