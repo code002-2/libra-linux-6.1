@@ -34,9 +34,7 @@ jobs:
 
       - name: Build rootfs image
         run: |
-          sudo bash scripts/build-debian13-rootfs.sh \
-            ${IMAGE_SIZE:+IMAGE_SIZE=$IMAGE_SIZE} \
-            ${ROOT_PASS:+ROOT_PASS=$ROOT_PASS}
+          sudo -E bash scripts/build-debian13-rootfs.sh
         env:
           IMAGE_SIZE: ${{ inputs.image_size || '2G' }}
           ROOT_PASS: ${{ inputs.root_pass || 'libra' }}
