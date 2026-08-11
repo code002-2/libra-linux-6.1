@@ -12,8 +12,7 @@
 #         by scanning for the FDT magic and passes it to the kernel)
 #
 # Intended to run on GitHub Actions (ubuntu-24.04) with:
-#   gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-#   android-tools-mkbootimg cpio curl xz-utils
+#   gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio curl xz-utils
 #
 # Outputs (relative to repo root):
 #   boot.img          <- flash with: fastboot flash boot boot.img
@@ -65,7 +64,7 @@ install -m 0755 initramfs/init initramfs-root/init
 
 echo "==> [4/4] Pack boot.img"
 cat "arch/arm64/boot/Image.gz" "$DTC_DTB" > Image.gz-dtb
-mkbootimg \
+python3 scripts/mkbootimg.py \
     --kernel Image.gz-dtb \
     --ramdisk initramfs.cpio.gz \
     --base "$BOOT_BASE" \
