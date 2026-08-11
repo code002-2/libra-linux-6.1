@@ -44,24 +44,20 @@ done
 log "--- console devices present ---"
 ls -1 /dev/ttyGS* /dev/ttyMSM* /dev/tty0 2>/dev/null || true
 
-# --- optional: boot a rootfs found on a known partition ---
-for d in /sys/block/mmcblk0/mmcblk0p*; do
+# --- boot the first rootfs found on any eMMC partition ---
+log "--- scanning for a rootfs (Debian/systemd /sbin/init) ---"
+for d in /sys/block/mmcblk*/mmcblk*p*; do
     [ -d "$d" ] || continue
-    label="$(sed -n 's/^PARTLABEL=//p' "$d/uevent" 2>/dev/null)"
-    case "$label" in
-        linux|libra|system)
-            dev="/dev/$(basename "$d")"
-            log "PARTLABEL=$label on $dev - trying to boot it"
-            mkdir -p /mnt/root
-            if mount -t ext4 "$dev" /mnt/root 2>/dev/null || mount -t f2fs "$dev" /mnt/root 2>/dev/null; then
-                if [ -x /mnt/root/sbin/init ]; then
-                    log "booting rootfs at $dev"
-                    exec switch_root /mnt/root /sbin/init
-                fi
-                umount /mnt/root 2>/dev/null
-            fi
-            ;;
-    esac
+    dev="/dev/$(basename "$d")"
+    pname="$(sed -n 's/^PARTNAME=//p' "$d/uevent" 2>/dev/null)"
+    mkdir -p /mnt/root
+    if mount -t ext4 "$dev" /mnt/root 2>/dev/null || mount -t f2fs "$dev" /mnt/root 2>/dev/null; then
+        if [ -x /mnt/root/sbin/init ]; then
+            log "FOUND rootfs on $dev (PARTNAME=${pname:-?}) - switching root"
+            exec switch_root /mnt/root /sbin/init
+        fi
+        umount /mnt/root 2>/dev/null
+    fi
 done
 
 log "=== No rootfs found. Dropping to interactive shell. ==="
