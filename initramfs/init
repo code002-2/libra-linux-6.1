@@ -22,6 +22,18 @@ mount -t devtmpfs devtmpfs /dev 2>/dev/null
 mkdir -p /dev/pts /dev/shm /run /tmp /mnt
 mount -t devpts devpts /dev/pts 2>/dev/null
 
+# --- draw the Tux splash (one penguin per online CPU) once the display is up ---
+if [ -x /bin/tux-splash ]; then
+    i=0
+    while [ ! -e /dev/fb0 ] && [ "$i" -lt 50 ]; do
+        sleep 0.1
+        i=$((i + 1))
+    done
+    if [ -e /dev/fb0 ]; then
+        /bin/tux-splash 2>/dev/null
+    fi
+fi
+
 log() { echo "[libra-init] $*"; }
 
 KVER="$(uname -r 2>/dev/null || echo unknown)"
