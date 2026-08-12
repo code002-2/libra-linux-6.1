@@ -35,7 +35,10 @@ BOOT_KERNEL_OFFSET=0x00008000
 BOOT_RAMDISK_OFFSET=0x02000000
 BOOT_TAGS_OFFSET=0x01e00000
 BOOT_PAGESIZE=2048
-BOOT_CMDLINE="${BOOT_CMDLINE:-console=ttyGS0,115200n8}"
+# Default: all 4 Cortex-A53 cores (stable). A57 cluster (CPU4/5) hangs on PSCI
+# CPU_ON — needs cluster power/clock init not present in lk2nd or the kernel.
+# Override with BOOT_CMDLINE="... maxcpus=6" to test (reversible).
+BOOT_CMDLINE="${BOOT_CMDLINE:-console=ttyGS0,115200n8 maxcpus=4}"
 
 echo "==> [1/4] Configure kernel (olddefconfig on committed .config)"
 make olddefconfig
