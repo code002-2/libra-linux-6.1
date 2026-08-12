@@ -46,13 +46,13 @@ ls -1 /dev/ttyGS* /dev/ttyMSM* /dev/tty0 2>/dev/null || true
 
 # --- wait for the eMMC to be ready before scanning for a rootfs ---
 i=0
-while [ ! -e /dev/mmcblk0 ] && [ ! -e /dev/mmcblk1 ] && [ "$i" -lt 150 ]; do
+while [ -z "$(ls /sys/block/mmcblk*/mmcblk*p* 2>/dev/null | head -1)" ] && [ "$i" -lt 150 ]; do
     sleep 0.1
     i=$((i + 1))
 done
-log "eMMC ready: $(ls -d /dev/mmcblk? 2>/dev/null | tr '\n' ' ')"
+log "eMMC partitions: $(ls -d /sys/block/mmcblk*/mmcblk*p* 2>/dev/null | wc -l) found"
 
-# --- boot the first rootfs found on any eMMC partition ---
+# --- boot the first rootfs found on any eMMC partition (with logging) ---
 log "--- scanning for a rootfs (Debian/systemd /sbin/init) ---"
 for d in /sys/block/mmcblk*/mmcblk*p*; do
     [ -d "$d" ] || continue
@@ -60,14 +60,19 @@ for d in /sys/block/mmcblk*/mmcblk*p*; do
     pname="$(sed -n 's/^PARTNAME=//p' "$d/uevent" 2>/dev/null)"
     mkdir -p /mnt/root
     if mount -t ext4 "$dev" /mnt/root 2>/dev/null || mount -t f2fs "$dev" /mnt/root 2>/dev/null; then
+        log "  $dev (${pname:-?}): mounted"
         if [ -x /mnt/root/sbin/init ]; then
-            log "FOUND rootfs on $dev (PARTNAME=${pname:-?}) - switching root"
+            log "  $dev: FOUND /sbin/init - switching root"
             exec switch_root /mnt/root /sbin/init
+            log "  $dev: switch_root returned (should not happen)"
+        else
+            log "  $dev: mounted but NO /sbin/init"
         fi
         umount /mnt/root 2>/dev/null
+    else
+        log "  $dev (${pname:-?}): mount failed"
     fi
 done
-
 log "=== No rootfs found. Dropping to interactive shell. ==="
 
 # --- draw the Tux splash (one penguin per online CPU) once the display settles ---
