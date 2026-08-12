@@ -22,18 +22,6 @@ mount -t devtmpfs devtmpfs /dev 2>/dev/null
 mkdir -p /dev/pts /dev/shm /run /tmp /mnt
 mount -t devpts devpts /dev/pts 2>/dev/null
 
-# --- draw the Tux splash (one penguin per online CPU) once the display is up ---
-if [ -x /bin/tux-splash ]; then
-    i=0
-    while [ ! -e /dev/fb0 ] && [ "$i" -lt 50 ]; do
-        sleep 0.1
-        i=$((i + 1))
-    done
-    if [ -e /dev/fb0 ]; then
-        /bin/tux-splash 2>/dev/null
-    fi
-fi
-
 log() { echo "[libra-init] $*"; }
 
 KVER="$(uname -r 2>/dev/null || echo unknown)"
@@ -73,6 +61,22 @@ for d in /sys/block/mmcblk*/mmcblk*p*; do
 done
 
 log "=== No rootfs found. Dropping to interactive shell. ==="
+
+# --- draw the Tux splash (one penguin per online CPU) once the display settles ---
+# The fbcon needs a moment after /dev/fb0 appears, so wait, then draw and
+# re-draw a few seconds later in case a redraw cleared it.
+if [ -x /bin/tux-splash ]; then
+    i=0
+    while [ ! -e /dev/fb0 ] && [ "$i" -lt 100 ]; do
+        sleep 0.1
+        i=$((i + 1))
+    done
+    if [ -e /dev/fb0 ]; then
+        sleep 2
+        /bin/tux-splash 2>/dev/null
+        ( sleep 3; /bin/tux-splash 2>/dev/null ) &
+    fi
+fi
 
 CONSOLE=""
 for t in ttyGS0 tty0 ttyMSM0 console; do
