@@ -112,6 +112,70 @@ systemctl --root="${ROOTFS_DIR}" enable ssh 2>/dev/null || true
 ln -sf /lib/systemd/system/serial-getty@.service \
     "${ROOTFS_DIR}/etc/systemd/system/getty.target.wants/serial-getty@ttyGS0.service" 2>/dev/null || true
 
+# --- autologin root on the USB serial console (ttyGS0) ---
+mkdir -p "${ROOTFS_DIR}/etc/systemd/system/serial-getty@ttyGS0.service.d"
+cat > "${ROOTFS_DIR}/etc/systemd/system/serial-getty@ttyGS0.service.d/autologin.conf" <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud %I 115200,38400,9600 $TERM
+EOF
+
+# --- allow root SSH login with password ---
+echo "PermitRootLogin yes" >> "${ROOTFS_DIR}/etc/ssh/sshd_config"
+
+# --- USB RNDIS network gadget (device becomes a USB NIC; SSH over USB) ---
+cat > "${ROOTFS_DIR}/usr/local/bin/usb-gadget-net.sh" <<'EOF'
+#!/bin/sh
+# Set up a USB RNDIS gadget and bring up usb0 (host: 192.168.42.1, device: 192.168.42.2)
+set -e
+mount -t configfs none /sys/kernel/config 2>/dev/null || true
+G=/sys/kernel/config/usb_gadget/libra
+if [ -d "$G" ]; then
+    UDC=$(ls /sys/class/udc/ 2>/dev/null | head -1)
+    [ -n "$UDC" ] && echo "$UDC" > "$G/UDC" 2>/dev/null || true
+else
+    mkdir -p "$G"
+    echo 0x1d6b > "$G/idVendor"
+    echo 0x0104 > "$G/idProduct"
+    mkdir -p "$G/strings/0x409"
+    echo "libra" > "$G/strings/0x409/serialnumber"
+    echo "Xiaomi" > "$G/strings/0x409/manufacturer"
+    echo "Mi 4C" > "$G/strings/0x409/product"
+    mkdir -p "$G/configs/c.1/strings/0x409"
+    echo "RNDIS" > "$G/configs/c.1/strings/0x409/configuration"
+    mkdir -p "$G/functions/rndis.usb0"
+    ln -sf "$G/functions/rndis.usb0" "$G/configs/c.1/"
+    UDC=$(ls /sys/class/udc/ 2>/dev/null | head -1)
+    if [ -n "$UDC" ]; then
+        echo "$UDC" > "$G/UDC"
+    else
+        echo "no UDC" >&2
+        exit 1
+    fi
+fi
+sleep 1
+ip link set usb0 up 2>/dev/null || true
+ip addr flush dev usb0 2>/dev/null || true
+ip addr add 192.168.42.2/24 dev usb0 2>/dev/null || true
+EOF
+chmod +x "${ROOTFS_DIR}/usr/local/bin/usb-gadget-net.sh"
+
+cat > "${ROOTFS_DIR}/etc/systemd/system/usb-gadget-net.service" <<'EOF'
+[Unit]
+Description=USB RNDIS network gadget
+After=systemd-udevd.service systemd-modules-load.service
+Wants=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-gadget-net.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl --root="${ROOTFS_DIR}" enable usb-gadget-net 2>/dev/null || true
+
 # --- one-shot resize of the root filesystem to fill the partition on first boot ---
 cat > "${ROOTFS_DIR}/etc/systemd/system/resize-root.service" <<EOF
 [Unit]
