@@ -65,6 +65,12 @@ echo "    downloading ${MINIROOTFS_URL}"
 curl -fsSL "$MINIROOTFS_URL" -o alpine-minirootfs.tar.gz
 tar -xzf alpine-minirootfs.tar.gz -C initramfs-root
 install -m 0755 initramfs/init initramfs-root/init
+
+# --- Tux splash (one penguin per online CPU, drawn to /dev/fb0 at boot) ---
+echo "    building tux-splash"
+"${CROSS_COMPILE}gcc" -static -O2 -o tux-splash splash/tux-splash.c -Isplash
+install -m 0755 tux-splash initramfs-root/bin/tux-splash
+
 ( cd initramfs-root && find . -print | cpio -o -H newc 2>/dev/null | gzip > ../initramfs.cpio.gz )
 
 echo "==> [4/4] Pack boot.img"
