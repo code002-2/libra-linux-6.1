@@ -44,6 +44,14 @@ done
 log "--- console devices present ---"
 ls -1 /dev/ttyGS* /dev/ttyMSM* /dev/tty0 2>/dev/null || true
 
+# --- wait for the eMMC to be ready before scanning for a rootfs ---
+i=0
+while [ ! -e /dev/mmcblk0 ] && [ ! -e /dev/mmcblk1 ] && [ "$i" -lt 150 ]; do
+    sleep 0.1
+    i=$((i + 1))
+done
+log "eMMC ready: $(ls -d /dev/mmcblk? 2>/dev/null | tr '\n' ' ')"
+
 # --- boot the first rootfs found on any eMMC partition ---
 log "--- scanning for a rootfs (Debian/systemd /sbin/init) ---"
 for d in /sys/block/mmcblk*/mmcblk*p*; do
